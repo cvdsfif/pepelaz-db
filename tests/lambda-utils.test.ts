@@ -1,5 +1,5 @@
 import { HandlerProps, interfaceHandler, setConnectionTimeouts } from "../src/lambda-utils";
-import { fieldObject, integerField, stringField, functionField, DataInterfaceDefinition, stringifyWithBigints, fieldArray, voidField } from "pepelaz";
+import { fieldObject, integerField, stringField, stringifyWithBigints, fieldArray, voidField, ApiFunctionArgument, VoidField } from "pepelaz";
 
 describe("Checking the lambda utils behaviour", () => {
 
@@ -17,11 +17,12 @@ describe("Checking the lambda utils behaviour", () => {
     test("Should correctly handle lambda interface", async () => {
         const argumentDefinition = fieldArray(fieldObject({ arg: integerField() }));
         const retvalDefinition = stringField();
-        const exportInterface: DataInterfaceDefinition = {
-            exportFn: functionField(argumentDefinition, retvalDefinition)
+        const exportInterface = {
+            exportFn: { arg: argumentDefinition, ret: retvalDefinition }
         };
-        interface Input { arg: number };
-        const callerFunction = async (inval: Input[], props: HandlerProps) => `Returning ${stringifyWithBigints(inval)}`;
+        //interface Input { arg: number };
+        const callerFunction = async (inval: ApiFunctionArgument<typeof exportInterface, "exportFn">, props: HandlerProps) =>
+            `Returning ${stringifyWithBigints(inval)}`;
         const result = await interfaceHandler(
             exportInterface,
             "exportFn",
@@ -34,8 +35,8 @@ describe("Checking the lambda utils behaviour", () => {
     });
 
     test("Should allow empty list of arguments and void return type", async () => {
-        const voidInterface: DataInterfaceDefinition = {
-            run: functionField(voidField(), voidField())
+        const voidInterface = {
+            run: { arg: voidField(), ret: voidField() }
         }
         //const callerFunction = async (input: void, props: HandlerProps): Promise<void> => { };
         const callerFunction = jest.fn();
