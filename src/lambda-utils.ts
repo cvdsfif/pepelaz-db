@@ -2,6 +2,7 @@ import { ApiDefinition, ApiFunctionArgument, ApiFunctionReturnType, VoidField, u
 import { ITypedFacade } from "./typed-facade";
 
 export const setConnectionTimeouts = (requestTimeout = 30000, connectTimeout = 10000, maxRetries = 3) => {
+    require('aws-sdk/lib/maintenance_mode_message').suppress = true;
     const AWS = require("aws-sdk");
 
     AWS.config.update({
