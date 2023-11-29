@@ -1,6 +1,6 @@
 {
   "name": "pepelaz-db",
-  "version": "4.0.0-beta.4",
+  "version": "4.0.0-beta.5",
   "description": "Database support for pepelaz library",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
