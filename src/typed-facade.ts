@@ -1,11 +1,24 @@
 import { BigIntField, DATE_EXPECTING_NOW, DateField, DbRecord, FieldObject, FieldObjectDefinition, stringifyWithBigints, unmarshal } from "pepelaz";
 import { IQueryInterface } from "./query-interfaces";
 
+export type UpsertProps = {
+    upsertFields?: string[],
+    onlyReplaceNulls?: boolean
+}
+
 export interface ITypedFacade extends IQueryInterface {
     query(request: string, queryObject?: any): Promise<{ records: any[]; }>;
     typedQuery<T extends FieldObjectDefinition>(template: FieldObject<T>, request: string, queryObject?: any): Promise<{ records: DbRecord<T>[]; }>;
-    multiInsert<T extends FieldObjectDefinition>(template: FieldObject<T>, tableName: string, records: DbRecord<T>[], upsertFields?: string[] | null): Promise<DbRecord<T>[]>;
-    multiUpsert<T extends FieldObjectDefinition>(template: FieldObject<T>, tableName: string, records: DbRecord<T>[], upsertFields: string[]): Promise<DbRecord<T>[]>;
+    multiInsert<T extends FieldObjectDefinition>(
+        template: FieldObject<T>,
+        tableName: string,
+        records: DbRecord<T>[],
+        upsertProps?: UpsertProps): Promise<DbRecord<T>[]>;
+    multiUpsert<T extends FieldObjectDefinition>(
+        template: FieldObject<T>,
+        tableName: string,
+        records: DbRecord<T>[],
+        upsertProps?: UpsertProps): Promise<DbRecord<T>[]>;
     select<T extends FieldObjectDefinition>(template: FieldObject<T>, tableQuery: string, queryObject?: any): Promise<DbRecord<T>[]>;
 }
 
@@ -72,12 +85,23 @@ class TypedFacade implements ITypedFacade {
                 `(${this.translateTransactionFieldsIntoIndexedArguments(record, index, template)})`)
             .join(",");
 
-    async multiInsert<T extends FieldObjectDefinition>(template: FieldObject<T>, tableName: string, records: DbRecord<T>[], upsertFields: string[] | null = null): Promise<DbRecord<T>[]> {
+    async multiInsert<T extends FieldObjectDefinition>(
+        template: FieldObject<T>,
+        tableName: string,
+        records: DbRecord<T>[],
+        upsertProps: UpsertProps = {}): Promise<DbRecord<T>[]> {
         if (records.length == 0) return [];
         let query: string;
         let values: any;
         try {
-            query = `INSERT INTO ${tableName}(${this.expandTableFields(records[0])}) VALUES${this.expandedArgumentsList(records, template)}${upsertFields ? ` ON CONFLICT(${upsertFields.join(",")}) DO UPDATE SET ${this.upsertStatement(template, upsertFields)}` : ""}`
+            const upsertFields = upsertProps.upsertFields ?? null;
+            query = `INSERT INTO ${tableName} AS _src(${this
+                .expandTableFields(records[0])}) VALUES${this
+                    .expandedArgumentsList(records, template)}${upsertFields ?
+                        ` ON CONFLICT(${upsertFields
+                            .join(",")}) DO UPDATE SET ${this
+                                .upsertStatement(template, { upsertFields: upsertFields, onlyReplaceNulls: upsertProps.onlyReplaceNulls ?? false })}` :
+                        ""}`
             values = this.expandedValuesList(records, template);
             await this.db.query(query, values);
             return records;
@@ -92,18 +116,26 @@ class TypedFacade implements ITypedFacade {
         }
     }
 
-    private upsertStatement = <T extends FieldObjectDefinition>(template: FieldObject<T> | T, upsertFields: string[]) => {
+    private upsertStatement = <T extends FieldObjectDefinition>(
+        template: FieldObject<T> | T,
+        upsertProps: UpsertProps) => {
         return Object.keys(template.definition ?? template)
-            .filter(key => (!upsertFields.includes(key)))
+            .filter(key => (!(upsertProps.upsertFields!.includes(key))))
             .map(key => {
                 const unerscoredFieldName = this.convertUppercaseIntoUnderscored(key);
-                return `${unerscoredFieldName} = EXCLUDED.${unerscoredFieldName}`;
+                return `${unerscoredFieldName} = ${upsertProps.onlyReplaceNulls ?
+                    `COALESCE(_src.${unerscoredFieldName},EXCLUDED.${unerscoredFieldName})` :
+                    `EXCLUDED.${unerscoredFieldName}`}`;
             })
             .join(",");
     }
 
-    async multiUpsert<T extends FieldObjectDefinition>(template: FieldObject<T>, tableName: string, records: DbRecord<T>[], upsertFields: string[]): Promise<DbRecord<T>[]> {
-        return this.multiInsert(template, tableName, records, upsertFields);
+    async multiUpsert<T extends FieldObjectDefinition>(
+        template: FieldObject<T>,
+        tableName: string,
+        records: DbRecord<T>[],
+        upsertProps: UpsertProps): Promise<DbRecord<T>[]> {
+        return this.multiInsert(template, tableName, records, upsertProps);
     }
 
     async select<T extends FieldObjectDefinition>(template: FieldObject<T>, tableQuery: string, queryObject?: any): Promise<DbRecord<T>[]> {

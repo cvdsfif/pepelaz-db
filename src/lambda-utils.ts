@@ -1,5 +1,6 @@
 import { ApiDefinition, ApiFunctionArgument, ApiFunctionReturnType, VoidField, unmarshal } from "pepelaz";
 import { ITypedFacade } from "./typed-facade";
+import { ReportedEvent } from "./integration-handler";
 
 export const setConnectionTimeouts = (requestTimeout = 30000, connectTimeout = 10000, maxRetries = 3) => {
     require('aws-sdk/lib/maintenance_mode_message').suppress = true;
@@ -12,10 +13,6 @@ export const setConnectionTimeouts = (requestTimeout = 30000, connectTimeout = 1
             connectTimeout: connectTimeout
         }
     });
-}
-
-export type ReportedEvent = {
-    body: string
 }
 
 export type HandlerProps = {

@@ -70,7 +70,7 @@ describe("Testing typed query fadace conversions", () => {
         const unmarshalled = unmarshal(fieldArray(dbEntries), JSON.parse(records));
         await typedFacade(dbMock).multiInsert(dbEntries, TABLE_NAME, unmarshalled);
         expect(dbMock.query).toBeCalledWith(
-            `INSERT INTO ${TABLE_NAME}(id,some_value) VALUES(:id_0,:someValue_0),(:id_1,:someValue_1)`,
+            `INSERT INTO ${TABLE_NAME} AS _src(id,some_value) VALUES(:id_0,:someValue_0),(:id_1,:someValue_1)`,
             { id_0: 1, someValue_0: "txt", id_1: 2, someValue_1: "pwd" }
         )
     });
@@ -133,7 +133,7 @@ describe("Testing typed query fadace conversions", () => {
         const TABLE_NAME = "test_tab";
         await typedFacade(dbMock).multiInsert(dbEntries, TABLE_NAME, records);
         expect(dbMock.query).toBeCalledWith(
-            `INSERT INTO ${TABLE_NAME}(bulk) VALUES(:bulk_0)`,
+            `INSERT INTO ${TABLE_NAME} AS _src(bulk) VALUES(:bulk_0)`,
             { bulk_0: false }
         )
     });
@@ -148,7 +148,7 @@ describe("Testing typed query fadace conversions", () => {
         const TABLE_NAME = "test_tab";
         await typedFacade(dbMock).multiInsert(dbEntries, TABLE_NAME, records);
         expect(dbMock.query).toBeCalledWith(
-            `INSERT INTO ${TABLE_NAME}(big) VALUES(CAST(:big_0 AS BIGINT))`,
+            `INSERT INTO ${TABLE_NAME} AS _src(big) VALUES(CAST(:big_0 AS BIGINT))`,
             { big_0: "1000000000000001" }
         )
     });
@@ -203,7 +203,7 @@ describe("Testing typed query fadace conversions", () => {
             notNullableField: 42
         }]);
         expect(dbMock.query).toBeCalledWith(
-            `INSERT INTO test_table(not_nullable_field) VALUES(:notNullableField_0)`,
+            `INSERT INTO test_table AS _src(not_nullable_field) VALUES(:notNullableField_0)`,
             { notNullableField_0: 42 }
         )
     });
@@ -251,7 +251,7 @@ describe("Testing typed query fadace conversions", () => {
             nullableField: null
         }]);
         expect(dbMock.query).toBeCalledWith(
-            `INSERT INTO test_table(not_nullable_field,nullable_field) VALUES(:notNullableField_0,CAST(:nullableField_0 AS BIGINT))`,
+            `INSERT INTO test_table AS _src(not_nullable_field,nullable_field) VALUES(:notNullableField_0,CAST(:nullableField_0 AS BIGINT))`,
             {
                 notNullableField_0: 42,
                 nullableField_0: null
@@ -270,9 +270,27 @@ describe("Testing typed query fadace conversions", () => {
         ]`;
         const TABLE_NAME = "test_tab";
         const unmarshalled = unmarshal(fieldArray(dbEntries), JSON.parse(records));
-        await typedFacade(dbMock).multiUpsert(dbEntries, TABLE_NAME, unmarshalled, ["id"]);
+        await typedFacade(dbMock).multiUpsert(dbEntries, TABLE_NAME, unmarshalled, { upsertFields: ["id"] });
         expect(dbMock.query).toBeCalledWith(
-            `INSERT INTO ${TABLE_NAME}(id,some_value) VALUES(:id_0,:someValue_0),(:id_1,:someValue_1) ON CONFLICT(id) DO UPDATE SET some_value = EXCLUDED.some_value`,
+            `INSERT INTO ${TABLE_NAME} AS _src(id,some_value) VALUES(:id_0,:someValue_0),(:id_1,:someValue_1) ON CONFLICT(id) DO UPDATE SET some_value = EXCLUDED.some_value`,
+            { id_0: 1, someValue_0: "txt", id_1: 2, someValue_1: "pwd" }
+        )
+    });
+
+    test("Should translate query with two upsert/replace null values", async () => {
+        const dbEntries = fieldObject({
+            id: integerField(),
+            someValue: stringField(),
+        });
+        const records = `[
+            { "id": "1", "someValue": "txt" },
+            { "id": 2, "someValue": "pwd" }
+        ]`;
+        const TABLE_NAME = "test_tab";
+        const unmarshalled = unmarshal(fieldArray(dbEntries), JSON.parse(records));
+        await typedFacade(dbMock).multiUpsert(dbEntries, TABLE_NAME, unmarshalled, { upsertFields: ["id"], onlyReplaceNulls: true });
+        expect(dbMock.query).toBeCalledWith(
+            `INSERT INTO ${TABLE_NAME} AS _src(id,some_value) VALUES(:id_0,:someValue_0),(:id_1,:someValue_1) ON CONFLICT(id) DO UPDATE SET some_value = COALESCE(_src.some_value,EXCLUDED.some_value)`,
             { id_0: 1, someValue_0: "txt", id_1: 2, someValue_1: "pwd" }
         )
     });
@@ -287,7 +305,7 @@ describe("Testing typed query fadace conversions", () => {
         const unmarshalled = unmarshal(fieldArray(dbEntries), JSON.parse(records));
         await typedFacade(dbMock).multiInsert(dbEntries, "test_table", unmarshalled);
         expect(dbMock.query).toBeCalledWith(
-            `INSERT INTO test_table(date_field) VALUES(now())`,
+            `INSERT INTO test_table AS _src(date_field) VALUES(now())`,
             {}
         )
     });
@@ -302,7 +320,7 @@ describe("Testing typed query fadace conversions", () => {
         const unmarshalled = unmarshal(fieldArray(dbEntries), JSON.parse(records));
         await typedFacade(dbMock).multiInsert(dbEntries, "test_table", unmarshalled);
         expect(dbMock.query).toBeCalledWith(
-            `INSERT INTO test_table(date_field) VALUES(:dateField_0)`,
+            `INSERT INTO test_table AS _src(date_field) VALUES(:dateField_0)`,
             { dateField_0: null }
         )
     });
