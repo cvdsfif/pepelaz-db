@@ -1,6 +1,6 @@
 {
   "name": "pepelaz-db",
-  "version": "5.0.0-beta.2",
+  "version": "5.0.0-beta.3",
   "description": "Database support for pepelaz library",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -27,6 +27,7 @@
   },
   "homepage": "https://github.com/cvdsfif/pepelaz-db#readme",
   "devDependencies": {
+    "@aws-sdk/client-rds-data": "^3.470.0",
     "@types/jest": "^29.5.5",
     "aws-sdk": "^2.1473.0",
     "data-api-client": "^1.3.0",
