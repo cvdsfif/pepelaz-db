@@ -32,6 +32,7 @@ export class IntegrationHandler<T extends LayerApisList = any> {
         func: keyof T[R],
         event: ReportedEvent,
         testConnection: boolean) => {
+
         const caller = this.implementations[apiKey]?.[func];
         if (!caller) throw new Error("Function not implemented");
         if (testConnection) return Promise.resolve(CONNECTED);
