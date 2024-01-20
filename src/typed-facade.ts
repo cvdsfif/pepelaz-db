@@ -99,6 +99,7 @@ class TypedFacade implements ITypedFacade {
                 .expandTableFields(records[0])}) VALUES${this
                     .expandedArgumentsList(records, template)}${upsertFields ?
                         ` ON CONFLICT(${upsertFields
+                            .map(fld => this.convertUppercaseIntoUnderscored(fld))
                             .join(",")}) DO UPDATE SET ${this
                                 .upsertStatement(template, { upsertFields: upsertFields, onlyReplaceNulls: upsertProps.onlyReplaceNulls ?? false })}` :
                         ""}`
@@ -120,7 +121,8 @@ class TypedFacade implements ITypedFacade {
         template: FieldObject<T> | T,
         upsertProps: UpsertProps) => {
         return Object.keys(template.definition ?? template)
-            .filter(key => (!(upsertProps.upsertFields!.includes(key))))
+            .filter(key => (!(upsertProps.upsertFields!.includes(key) ||
+                upsertProps.upsertFields?.includes(this.convertUppercaseIntoUnderscored(key)))))
             .map(key => {
                 const unerscoredFieldName = this.convertUppercaseIntoUnderscored(key);
                 return `${unerscoredFieldName} = ${upsertProps.onlyReplaceNulls ?

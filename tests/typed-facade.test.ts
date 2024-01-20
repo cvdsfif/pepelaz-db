@@ -277,6 +277,44 @@ describe("Testing typed query fadace conversions", () => {
         )
     });
 
+    test("Should translate upsert query with two key fields with possible underscores", async () => {
+        const dbEntries = fieldObject({
+            idA: integerField(),
+            idB: integerField(),
+            someValue: stringField(),
+        });
+        const records = `[
+            { "id_a": "1", "id_b": "1", "someValue": "txt" },
+            { "id_a": 2, "id_b": "1", "someValue": "pwd" }
+        ]`;
+        const TABLE_NAME = "test_tab";
+        const unmarshalled = unmarshal(fieldArray(dbEntries), JSON.parse(records));
+        await typedFacade(dbMock).multiUpsert(dbEntries, TABLE_NAME, unmarshalled, { upsertFields: ["id_a", "id_b"] });
+        expect(dbMock.query).toBeCalledWith(
+            `INSERT INTO ${TABLE_NAME} AS _src(id_a,id_b,some_value) VALUES(:idA_0,:idB_0,:someValue_0),(:idA_1,:idB_1,:someValue_1) ON CONFLICT(id_a,id_b) DO UPDATE SET some_value = EXCLUDED.some_value`,
+            { idA_0: 1, idB_0: 1, someValue_0: "txt", idA_1: 2, idB_1: 1, someValue_1: "pwd" }
+        )
+    });
+
+    test("Should translate upsert query with two key fields with possible camel case", async () => {
+        const dbEntries = fieldObject({
+            idA: integerField(),
+            idB: integerField(),
+            someValue: stringField(),
+        });
+        const records = `[
+            { "id_a": "1", "id_b": "1", "someValue": "txt" },
+            { "id_a": 2, "id_b": "1", "someValue": "pwd" }
+        ]`;
+        const TABLE_NAME = "test_tab";
+        const unmarshalled = unmarshal(fieldArray(dbEntries), JSON.parse(records));
+        await typedFacade(dbMock).multiUpsert(dbEntries, TABLE_NAME, unmarshalled, { upsertFields: ["idA", "idB"] });
+        expect(dbMock.query).toBeCalledWith(
+            `INSERT INTO ${TABLE_NAME} AS _src(id_a,id_b,some_value) VALUES(:idA_0,:idB_0,:someValue_0),(:idA_1,:idB_1,:someValue_1) ON CONFLICT(id_a,id_b) DO UPDATE SET some_value = EXCLUDED.some_value`,
+            { idA_0: 1, idB_0: 1, someValue_0: "txt", idA_1: 2, idB_1: 1, someValue_1: "pwd" }
+        )
+    });
+
     test("Should translate query with two upsert/replace null values", async () => {
         const dbEntries = fieldObject({
             id: integerField(),
